@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="予約台帳">
-<meta name="theme-color" content="#0f0f0f">
+<meta name="theme-color" content="#ffffff">
 <title>予約台帳</title>
 <!-- PWA manifest (inline) -->
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%E4%BA%88%E7%B4%84%E5%8F%B0%E5%B8%B3%22%2C%22short_name%22%3A%22%E4%BA%88%E7%B4%84%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f0f%22%2C%22theme_color%22%3A%22%230f0f0f%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520512%2520512%2527%253E%253Crect%2520width%3D%2527512%2527%2520height%3D%2527512%2527%2520rx%3D%252780%2527%2520fill%3D%2527%25230f0f0f%2527%2F%253E%253Ctext%2520x%3D%2527256%2527%2520y%3D%2527340%2527%2520text-anchor%3D%2527middle%2527%2520font-size%3D%2527280%2527%253E%25F0%259F%2593%258B%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
@@ -16,22 +16,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --s2: #222;
-  --s3: #2a2a2a;
-  --border: #303030;
-  --accent: #e8c97e;
-  --accent2: #c5a55a;
-  --text: #f0ede8;
-  --muted: #777;
-  --red: #e07070;
-  --green: #7ec89a;
-  --blue: #7eb4e0;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --s2: #f0f0f2;
+  --s3: #e8e8ec;
+  --border: #dcdce0;
+  --accent: #b8860b;
+  --accent2: #996f00;
+  --text: #1a1a1a;
+  --muted: #888;
+  --red: #d64545;
+  --green: #2e8b57;
+  --blue: #2970b8;
   --font: 'Noto Sans JP', sans-serif;
   --mono: 'DM Mono', monospace;
   --nav-h: 60px;
-  --header-h: 108px; /* date bar + summary bar */
+  --header-h: 108px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; overflow: hidden; }
@@ -123,11 +123,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .nav-fab-inner {
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--accent); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px rgba(232,201,126,.35);
+  box-shadow: 0 4px 14px rgba(184,134,11,.3);
   transition: transform .15s, background .15s;
 }
 .nav-fab-inner:active { transform: scale(.93); background: var(--accent2); }
-.nav-fab svg { width: 22px; height: 22px; stroke: #111; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+.nav-fab svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; }
 
 /* ── Views ── */
 .view { display: none; padding: 14px 14px 8px; }
@@ -233,7 +233,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 /* グリッド線 */
 .gl { position: absolute; top: 0; bottom: 0; width: 1px; pointer-events: none; }
 .gl.maj { background: var(--border); }
-.gl.min { background: rgba(255,255,255,.04); }
+.gl.min { background: rgba(0,0,0,.06); }
 
 /* 空きゾーン */
 .tl-empty { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; cursor: pointer; z-index: 2; transition: background .12s; }
@@ -315,7 +315,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .fg textarea { resize: none; min-height: 72px; }
 .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sheet-ft { padding: 12px 18px 4px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
-.btn-sv-full { background: var(--accent); color: #111; border: none; padding: 15px; border-radius: 12px; font: 700 16px var(--font); cursor: pointer; width: 100%; transition: background .15s; }
+.btn-sv-full { background: var(--accent); color: #fff; border: none; padding: 15px; border-radius: 12px; font: 700 16px var(--font); cursor: pointer; width: 100%; transition: background .15s; }
 .btn-sv-full:active { background: var(--accent2); }
 .btn-row { display: flex; gap: 8px; }
 .btn-cl2 { flex: 1; background: var(--s2); border: 1px solid var(--border); color: var(--muted); padding: 12px; border-radius: 10px; font: 14px var(--font); cursor: pointer; transition: all .15s; }
@@ -373,7 +373,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 }
 .cal-day:active { background: var(--s3); }
 .cal-day.empty  { cursor: default; pointer-events: none; }
-.cal-day.today  { background: var(--s2); }
+.cal-day.today  { background: var(--s3); }
 .cal-day.selected { background: var(--accent) !important; }
 .cal-dn { font: 500 16px var(--mono); color: var(--text); line-height: 1; }
 .cal-day.today    .cal-dn { color: var(--accent); font-weight: 700; }
