@@ -1,1 +1,1376 @@
-# yoyaku
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="予約台帳">
+<meta name="theme-color" content="#0f0f0f">
+<title>予約台帳</title>
+<!-- PWA manifest (inline) -->
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%E4%BA%88%E7%B4%84%E5%8F%B0%E5%B8%B3%22%2C%22short_name%22%3A%22%E4%BA%88%E7%B4%84%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f0f%22%2C%22theme_color%22%3A%22%230f0f0f%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520512%2520512%2527%253E%253Crect%2520width%3D%2527512%2527%2520height%3D%2527512%2527%2520rx%3D%252780%2527%2520fill%3D%2527%25230f0f0f%2527%2F%253E%253Ctext%2520x%3D%2527256%2527%2520y%3D%2527340%2527%2520text-anchor%3D%2527middle%2527%2520font-size%3D%2527280%2527%253E%25F0%259F%2593%258B%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<!-- Apple touch icon (SVG→canvas generated) -->
+<link rel="apple-touch-icon" id="appleTouchIcon">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --s2: #222;
+  --s3: #2a2a2a;
+  --border: #303030;
+  --accent: #e8c97e;
+  --accent2: #c5a55a;
+  --text: #f0ede8;
+  --muted: #777;
+  --red: #e07070;
+  --green: #7ec89a;
+  --blue: #7eb4e0;
+  --font: 'Noto Sans JP', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --nav-h: 60px;
+  --header-h: 108px; /* date bar + summary bar */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; }
+
+/* ── Top header ── */
+.top-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Date nav row */
+.date-row {
+  display: flex; align-items: center; gap: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.date-btn {
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--text); width: 38px; height: 38px; border-radius: 8px;
+  font-size: 18px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: background .15s;
+}
+.date-btn:active { background: var(--border); }
+.date-label {
+  flex: 1; text-align: center;
+  font: 500 15px var(--mono); color: var(--accent);
+}
+.today-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); padding: 0 12px; height: 38px; border-radius: 8px;
+  font: 12px var(--font); cursor: pointer; flex-shrink: 0; transition: all .15s;
+}
+.today-btn:active { background: var(--s3); color: var(--text); }
+
+/* Summary row */
+.summary-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; overflow-x: auto; scrollbar-width: none;
+}
+.summary-row::-webkit-scrollbar { display: none; }
+.sum-lbl { font: 10px var(--mono); color: var(--muted); flex-shrink: 0; letter-spacing: .06em; text-transform: uppercase; margin-right: 2px; }
+.sum-chip {
+  display: inline-flex; flex-direction: column; align-items: center;
+  padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--s2); flex-shrink: 0; min-width: 44px;
+}
+.sum-chip.ok   { border-color: rgba(126,200,154,.35); background: rgba(126,200,154,.07); }
+.sum-chip.full { border-color: rgba(224,112,112,.3);  background: rgba(224,112,112,.05); }
+.sum-h  { font: 10px var(--mono); color: var(--muted); }
+.sum-n  { font: 700 14px var(--mono); }
+.sum-chip.ok   .sum-n { color: var(--green); }
+.sum-chip.full .sum-n { color: var(--red); }
+.sum-add { font: 700 10px var(--font); color: var(--accent); margin-top: 1px; }
+
+/* ── Scroll area ── */
+.content {
+  position: fixed;
+  top: var(--header-h);
+  bottom: var(--nav-h);
+  left: 0; right: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Bottom nav ── */
+.bot-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; font: 10px var(--font); transition: color .15s;
+}
+.nav-btn.on { color: var(--accent); }
+.nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-fab {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; background: transparent; border: none; cursor: pointer;
+}
+.nav-fab-inner {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--accent); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(232,201,126,.35);
+  transition: transform .15s, background .15s;
+}
+.nav-fab-inner:active { transform: scale(.93); background: var(--accent2); }
+.nav-fab svg { width: 22px; height: 22px; stroke: #111; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+
+/* ── Views ── */
+.view { display: none; padding: 14px 14px 8px; }
+.view.on { display: block; }
+#vTL { padding: 0; }
+
+/* ── List view ── */
+.sec-title {
+  font: 11px var(--mono); color: var(--muted); letter-spacing: .08em;
+  text-transform: uppercase; padding: 6px 2px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-title + .sec-title { margin-top: 14px; }
+.res-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px 14px; margin-bottom: 8px;
+  cursor: pointer; transition: border-color .15s; active:border-color #444;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.res-card:active { border-color: #444; }
+.rc-left { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.rc-time { font: 600 15px var(--mono); color: var(--accent); }
+.rc-tbl  { font: 11px var(--mono); color: var(--muted); background: var(--s3); padding: 2px 6px; border-radius: 4px; }
+.rc-body { flex: 1; min-width: 0; }
+.rc-name { font-weight: 700; font-size: 15px; margin-bottom: 3px; }
+.rc-detail { font-size: 12px; color: var(--muted); }
+.rc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.rc-pax { font: 500 13px var(--mono); color: var(--muted); }
+.rc-st { padding: 3px 10px; border-radius: 20px; font: 600 11px var(--font); white-space: nowrap; }
+.st-ok  { background: rgba(126,200,154,.15); color: var(--green); }
+.st-pnd { background: rgba(232,201,126,.15); color: var(--accent); }
+.st-cxl { background: rgba(224,112,112,.15); color: var(--red); }
+.empty { text-align: center; padding: 56px 0; color: var(--muted); font-size: 14px; }
+.empty .ico { font-size: 36px; margin-bottom: 10px; }
+
+/* ── Timeline view ── */
+/* 外側: テーブル名列(固定) + スクロール領域 を横並び */
+.tl-outer {
+  display: flex;
+  overflow: hidden; /* 縦スクロールは .content が担当 */
+}
+/* 左固定列 */
+.tl-fixed {
+  flex-shrink: 0;
+  width: 64px;
+  border-right: 1px solid var(--border);
+  z-index: 6;
+  background: var(--bg);
+}
+.tl-fixed-head {
+  height: 28px;           /* ラベル行と高さを揃える */
+  border-bottom: 2px solid var(--border);
+}
+.tl-fixed-row {
+  height: 52px;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 8px 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tl-fixed-row:last-child { border-bottom: none; }
+.tl-fixed-row .rn { font: 600 11px var(--mono); }
+.tl-fixed-row .rc { font: 10px var(--mono); color: var(--muted); margin-top: 1px; }
+
+/* 右スクロール領域 */
+.tl-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.tl-scroll::-webkit-scrollbar { height: 4px; }
+.tl-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* スクロール内の実幅 (1時間=80px × 7時間 = 560px) */
+.tl-inner {
+  width: 560px;         /* 変更する場合はJSの TL_COL_PX も合わせる */
+  position: relative;
+}
+/* 時刻ラベル行 */
+.tl-labels {
+  height: 28px;
+  position: relative;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg);
+}
+.tl-lbl {
+  position: absolute; transform: translateX(-50%);
+  font: 10px var(--mono); color: var(--muted); top: 6px;
+  white-space: nowrap; pointer-events: none;
+}
+.tl-lbl.maj { color: var(--text); font-size: 11px; font-weight: 500; }
+
+/* 各行 */
+.tl-row {
+  height: 52px; position: relative;
+  border-bottom: 1px solid var(--border);
+  background: var(--s2);
+}
+.tl-row:last-child { border-bottom: none; }
+
+/* グリッド線 */
+.gl { position: absolute; top: 0; bottom: 0; width: 1px; pointer-events: none; }
+.gl.maj { background: var(--border); }
+.gl.min { background: rgba(255,255,255,.04); }
+
+/* 空きゾーン */
+.tl-empty { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; cursor: pointer; z-index: 2; transition: background .12s; }
+.tl-empty:active { background: rgba(232,201,126,.18); }
+
+/* 予約ブロック */
+.tl-blk {
+  position: absolute; top: 5px; height: calc(100% - 10px);
+  border-radius: 5px; cursor: pointer;
+  display: flex; align-items: center; padding: 0 7px;
+  font: 600 11px var(--font); color: #111;
+  white-space: nowrap; overflow: hidden;
+  z-index: 5; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.tl-blk.dinner { background: var(--accent); }
+.tl-blk.lunch  { background: var(--blue); }
+.tl-blk.pend   { opacity: .65; }
+
+/* ── Tables view ── */
+.tbl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tbl-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer; transition: border-color .15s;
+}
+.tbl-card:active { border-color: #444; }
+.tbl-card-name { font: 700 16px var(--mono); }
+.tbl-card-cap  { font: 12px var(--font); color: var(--muted); }
+.tbl-card-res  { font: 12px var(--font); color: var(--muted); margin-top: 2px; }
+.tbl-card-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.tbl-card-dot.busy { background: var(--red); }
+.tbl-card-head { display: flex; align-items: center; justify-content: space-between; }
+.add-tbl-card {
+  background: transparent; border: 1px dashed var(--border);
+  border-radius: 12px; padding: 14px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); font-size: 13px; gap: 6px;
+  transition: all .15s;
+}
+.add-tbl-card:active { border-color: var(--accent); color: var(--accent); }
+
+/* ── Bottom sheet modal ── */
+.sheet-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.6); z-index: 100;
+}
+.sheet-overlay.on { display: block; }
+.sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 101;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.sheet.on { transform: translateY(0); }
+.sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 10px auto 0; flex-shrink: 0; }
+.sheet-hd { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; flex-shrink: 0; }
+.sheet-title { font: 700 17px var(--font); }
+.sheet-x { background: var(--s3); border: none; color: var(--muted); width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.sheet-body { overflow-y: auto; padding: 0 18px 18px; flex: 1; }
+
+/* Form */
+.fg { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.fg label { font: 11px var(--mono); color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.fg input, .fg select, .fg textarea {
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--text); padding: 13px 14px; border-radius: 10px;
+  font: 15px var(--font); outline: none; width: 100%;
+  transition: border-color .15s; -webkit-appearance: none; appearance: none;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--accent); }
+.fg select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23777' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 32px; }
+.fg select option { background: #1a1a1a; }
+.fg textarea { resize: none; min-height: 72px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sheet-ft { padding: 12px 18px 4px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.btn-sv-full { background: var(--accent); color: #111; border: none; padding: 15px; border-radius: 12px; font: 700 16px var(--font); cursor: pointer; width: 100%; transition: background .15s; }
+.btn-sv-full:active { background: var(--accent2); }
+.btn-row { display: flex; gap: 8px; }
+.btn-cl2 { flex: 1; background: var(--s2); border: 1px solid var(--border); color: var(--muted); padding: 12px; border-radius: 10px; font: 14px var(--font); cursor: pointer; transition: all .15s; }
+.btn-del2 { flex: 1; background: transparent; border: 1px solid var(--red); color: var(--red); padding: 12px; border-radius: 10px; font: 14px var(--font); cursor: pointer; transition: all .15s; }
+
+/* Table manager sheet */
+.tmi { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tmi span { flex: 1; font-size: 15px; }
+.tmi .cap { font: 12px var(--mono); color: var(--muted); background: var(--s3); padding: 3px 8px; border-radius: 5px; }
+.tmi .rm { background: transparent; border: none; color: var(--red); font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 6px; }
+.add-tbl-row { display: flex; gap: 8px; padding-top: 14px; }
+.add-tbl-row input { flex: 1; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 12px 13px; border-radius: 10px; font: 15px var(--font); outline: none; }
+.add-tbl-row input:focus { border-color: var(--accent); }
+.add-tbl-row select { width: 82px; flex-shrink: 0; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 12px 8px; border-radius: 10px; font: 15px var(--font); outline: none; -webkit-appearance: none; appearance: none; }
+.add-tbl-row .go { background: var(--accent); color: #111; border: none; padding: 12px 16px; border-radius: 10px; font: 700 15px var(--font); cursor: pointer; white-space: nowrap; }
+
+/* Tl tap indicator */
+.tl-tap-hint { font: 11px var(--mono); color: var(--muted); text-align: center; padding: 8px 0 4px; letter-spacing: .04em; }
+
+/* ── Calendar fullscreen ── */
+.cal-screen {
+  display: none; position: fixed; inset: 0; z-index: 120;
+  background: var(--bg); flex-direction: column;
+  animation: calFadeIn .15s ease;
+}
+.cal-screen.on { display: flex; }
+@keyframes calFadeIn { from{opacity:0;transform:scale(.98)} to{opacity:1;transform:scale(1)} }
+.cal-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.cal-topbar-title { font: 700 17px var(--font); }
+.cal-topbar-x { background: var(--s3); border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cal-month-row { display: flex; align-items: center; padding: 10px 16px 6px; flex-shrink: 0; }
+.cal-m-btn { background: var(--s2); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 8px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.cal-m-btn:active { background: var(--border); }
+.cal-m-label { flex: 1; text-align: center; font: 600 16px var(--mono); color: var(--accent); }
+.cal-body { flex: 1; display: flex; flex-direction: column; padding: 0 10px 12px; min-height: 0; }
+.cal-dow-row { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; flex-shrink: 0; }
+.cal-dow { text-align: center; font: 11px var(--mono); color: var(--muted); padding: 4px 0; }
+.cal-dow.sun { color: var(--red); }
+.cal-dow.sat { color: var(--blue); }
+.cal-grid {
+  flex: 1; display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 3px; min-height: 0;
+}
+.cal-day {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-radius: 10px; cursor: pointer; gap: 3px;
+  transition: background .12s;
+}
+.cal-day:active { background: var(--s3); }
+.cal-day.empty  { cursor: default; pointer-events: none; }
+.cal-day.today  { background: var(--s2); }
+.cal-day.selected { background: var(--accent) !important; }
+.cal-dn { font: 500 16px var(--mono); color: var(--text); line-height: 1; }
+.cal-day.today    .cal-dn { color: var(--accent); font-weight: 700; }
+.cal-day.sun      .cal-dn { color: var(--red); }
+.cal-day.sat      .cal-dn { color: var(--blue); }
+.cal-day.selected .cal-dn { color: #111 !important; font-weight: 700; }
+.cal-dots { display: flex; gap: 2px; justify-content: center; height: 5px; }
+.cal-dot  { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+.cal-dot.many { background: var(--red); }
+.cal-day.selected .cal-dot { background: rgba(0,0,0,.3); }
+.sheet-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0; margin: 0 18px; }
+.sheet-tab { flex: 1; padding: 10px 0; text-align: center; font: 13px var(--font); color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
+.sheet-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.on { display: block; }
+.course-item { display: flex; align-items: center; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.course-item:last-child { border-bottom: none; }
+.ci-body { flex: 1; min-width: 0; }
+.ci-name { font: 500 15px var(--font); }
+.ci-sub  { font: 12px var(--font); color: var(--muted); margin-top: 2px; }
+.ci-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.ci-edit { background: var(--s3); border: none; color: var(--muted); padding: 6px 10px; border-radius: 7px; font: 12px var(--font); cursor: pointer; }
+.ci-rm   { background: transparent; border: none; color: var(--red); font-size: 16px; padding: 4px 8px; cursor: pointer; border-radius: 6px; }
+.course-form { background: var(--s2); border-radius: 12px; padding: 14px; margin-top: 14px; }
+.course-form-title { font: 600 13px var(--font); color: var(--muted); margin-bottom: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.empty-courses { text-align: center; padding: 32px 0; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="date-row">
+    <button class="date-btn" id="btnPrev">‹</button>
+    <button class="date-label" id="curDate" style="background:none;border:none;cursor:pointer;"></button>
+    <button class="today-btn" id="btnToday">今日</button>
+    <button class="date-btn" id="btnNext">›</button>
+  </div>
+  <div class="summary-row" id="summaryRow"></div>
+</div>
+
+<!-- Scroll content -->
+<div class="content">
+  <div class="view on" id="vList"></div>
+  <div class="view" id="vTL"></div>
+  <div class="view" id="vTables"></div>
+</div>
+
+<!-- Bottom nav -->
+<div class="bot-nav">
+  <button class="nav-btn on" id="navList">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    リスト
+  </button>
+  <button class="nav-btn" id="navTL">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    タイムライン
+  </button>
+  <button class="nav-fab" id="navAdd">
+    <div class="nav-fab-inner">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </button>
+  <button class="nav-btn" id="navTables">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    設定
+  </button>
+  <button class="nav-btn" id="navEmpty" style="visibility:hidden"></button>
+</div>
+
+<!-- Calendar fullscreen -->
+<div class="cal-screen" id="calScreen">
+  <div class="cal-topbar">
+    <span class="cal-topbar-title">日付を選択</span>
+    <button class="cal-topbar-x" id="calClose">×</button>
+  </div>
+  <div class="cal-month-row">
+    <button class="cal-m-btn" id="calPrevM">‹</button>
+    <div class="cal-m-label" id="calMonthLabel"></div>
+    <button class="cal-m-btn" id="calNextM">›</button>
+  </div>
+  <div class="cal-body">
+    <div class="cal-dow-row">
+      <span class="cal-dow sun">日</span><span class="cal-dow">月</span><span class="cal-dow">火</span>
+      <span class="cal-dow">水</span><span class="cal-dow">木</span><span class="cal-dow">金</span>
+      <span class="cal-dow sat">土</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<!-- Reservation sheet -->
+<div class="sheet-overlay" id="resOverlay"></div>
+<div class="sheet" id="resSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <span class="sheet-title" id="resTitle">予約を追加</span>
+    <button class="sheet-x" id="resClose">×</button>
+  </div>
+  <div class="sheet-body">
+    <div class="fg">
+      <label for="fName">お名前</label>
+      <input type="text" id="fName" placeholder="山田 太郎" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label for="fDate">日付</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label for="fStart">開始</label>
+        <input type="time" id="fStart">
+      </div>
+      <div class="fg">
+        <label for="fEnd">終了</label>
+        <input type="time" id="fEnd">
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label for="fPax">人数</label>
+        <select id="fPax">
+          <option value="1">1名</option><option value="2">2名</option>
+          <option value="3">3名</option><option value="4">4名</option>
+          <option value="5">5名</option><option value="6">6名</option>
+          <option value="7">7名</option><option value="8">8名</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label for="fStatus">状態</label>
+        <select id="fStatus">
+          <option value="confirmed">確定</option>
+          <option value="pending">仮予約</option>
+          <option value="cancelled">キャンセル</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg">
+      <label for="fTable">テーブル</label>
+      <select id="fTable"></select>
+    </div>
+    <div class="fg">
+      <label for="fCourse">コース</label>
+      <select id="fCourse"></select>
+    </div>
+    <div class="fg">
+      <label for="fMemo">メモ</label>
+      <textarea id="fMemo" placeholder="アレルギー・希望など"></textarea>
+    </div>
+  </div>
+  <div class="sheet-ft">
+    <button class="btn-sv-full" id="btnSave">保存する</button>
+    <div class="btn-row">
+      <button class="btn-cl2" id="btnResCancel">キャンセル</button>
+      <button class="btn-del2" id="btnDel">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Table/Course manager sheet -->
+<div class="sheet-overlay" id="tblOverlay"></div>
+<div class="sheet" id="tblSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <span class="sheet-title">設定</span>
+    <button class="sheet-x" id="tblClose">×</button>
+  </div>
+  <div class="sheet-tabs">
+    <button class="sheet-tab on" id="tabCourse">コース</button>
+    <button class="sheet-tab" id="tabTbl">テーブル</button>
+  </div>
+  <div class="sheet-body">
+    <!-- コースタブ（先頭） -->
+    <div class="tab-pane on" id="paneCourse">
+      <div style="height:10px"></div>
+      <div id="courseMgrList"></div>
+      <div class="course-form">
+        <div class="course-form-title" id="courseFormTitle">コースを追加</div>
+        <div class="fg">
+          <label>コース名</label>
+          <input type="text" id="cName" placeholder="例：おまかせコース">
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label>料金</label>
+            <input type="number" id="cPrice" placeholder="5000" min="0">
+          </div>
+          <div class="fg">
+            <label>所要時間(分)</label>
+            <input type="number" id="cDuration" placeholder="120" min="30" step="30">
+          </div>
+        </div>
+        <div class="fg">
+          <label>メモ</label>
+          <input type="text" id="cNote" placeholder="アレルギー対応可など">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn-cl2" id="btnCourseCancel" style="display:none">キャンセル</button>
+          <button class="btn-sv-full" id="btnCourseSave">保存</button>
+        </div>
+      </div>
+    </div>
+    <!-- テーブルタブ -->
+    <div class="tab-pane" id="paneTbl">
+      <div style="height:10px"></div>
+      <div id="tblMgrList"></div>
+      <div class="add-tbl-row">
+        <input type="text" id="newTblName" placeholder="テーブル名（例：A-1）">
+        <select id="newTblCap">
+          <option value="2">2名</option><option value="4">4名</option>
+          <option value="6">6名</option><option value="8">8名</option>
+          <option value="10">10名</option>
+        </select>
+        <button class="go" id="btnAddTbl">追加</button>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-ft">
+    <button class="btn-sv-full" id="btnTblDone">完了</button>
+  </div>
+</div>
+
+<script type="module">
+// ── Firebase SDK ─────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC-INX_9JtSaw3GbM1GF-S5q72LpURQ_3M",
+  authDomain: "yoyaku-6e897.firebaseapp.com",
+  databaseURL: "https://yoyaku-6e897-default-rtdb.firebaseio.com",
+  projectId: "yoyaku-6e897",
+  storageBucket: "yoyaku-6e897.firebasestorage.app",
+  messagingSenderId: "375645841842",
+  appId: "1:375645841842:web:293b50e4c4284f94b45cab"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getDatabase(fbApp);
+const ROOT  = 'yoyaku';
+
+// Firebaseへ書き込み
+window._fbSave = function(data) {
+  set(ref(db, ROOT), data).catch(e => console.warn('Firebase save error:', e));
+};
+
+// Firebaseからリアルタイム受信
+window._fbListen = function(callback) {
+  onValue(ref(db, ROOT), snap => {
+    const val = snap.val();
+    if (val) callback(val);
+  });
+};
+</script>
+
+<script>
+'use strict';
+
+// ── Persistence ─────────────────────────────────────────
+const STORAGE_KEY = 'reservationManagerData_v1';
+let _isSyncing = false; // Firebase受信中はrenderのsaveをスキップ
+
+// localStorageから読み込み（オフライン時のフォールバック）
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+// localStorageに保存
+function saveLocal() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ tables, reservations, courses, uid }));
+  } catch(e) {}
+}
+
+// Firebaseに保存
+function saveData() {
+  if (_isSyncing) return;
+  const data = { tables, reservations, courses, uid };
+  saveLocal();
+  if (window._fbSave) window._fbSave(data);
+}
+
+// Firebaseからデータを受信して画面に反映
+function applyRemoteData(data) {
+  _isSyncing = true;
+  if (data.tables)       tables       = data.tables;
+  if (data.reservations) reservations = data.reservations;
+  if (data.courses)      courses      = data.courses;
+  if (data.uid)          uid          = data.uid;
+  saveLocal();
+  render();
+  _isSyncing = false;
+}
+
+// 接続ステータス表示
+function showSyncStatus(msg, color) {
+  let el = document.getElementById('syncStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'syncStatus';
+    el.style.cssText = `position:fixed;top:0;left:0;right:0;height:3px;z-index:999;transition:background .3s`;
+    document.body.appendChild(el);
+  }
+  el.style.background = color;
+  if (msg === 'ok') setTimeout(() => el.style.background = 'transparent', 1500);
+}
+
+const _saved = loadLocal();
+
+// ── State ──────────────────────────────────────────────
+let tables = _saved?.tables || [
+  { id:1, name:'A-1', cap:2 },
+  { id:2, name:'A-2', cap:2 },
+  { id:3, name:'B-1', cap:4 },
+  { id:4, name:'B-2', cap:4 },
+  { id:5, name:'C-1', cap:6 },
+];
+let reservations = _saved?.reservations || [];
+let selectedDate = new Date();
+let editingId    = null;
+let uid = _saved?.uid || 20;
+let currentView  = 'list';
+let editingCourseId = null;
+let calViewDate = new Date(); // カレンダーで表示中の年月
+
+// ── Calendar Sheet ───────────────────────────────────────
+function openCalSheet() {
+  calViewDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+  renderCalSheet();
+  $('calScreen').classList.add('on');
+}
+function closeCalSheet() {
+  $('calScreen').classList.remove('on');
+}
+function renderCalSheet() {
+  const y = calViewDate.getFullYear();
+  const m = calViewDate.getMonth();
+  $('calMonthLabel').textContent = `${y}年 ${m+1}月`;
+
+  const today = new Date();
+  const firstDay = new Date(y, m, 1).getDay(); // 0=日
+  const lastDate = new Date(y, m+1, 0).getDate();
+
+  // 予約件数マップ: "YYYY-MM-DD" → count
+  const countMap = {};
+  for (const r of reservations.filter(r=>r.status!=='cancelled')) {
+    const key = r._date;
+    if (key) countMap[key] = (countMap[key]||0) + 1;
+  }
+
+  let html = '';
+  // 先頭の空セル
+  for (let i=0; i<firstDay; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d=1; d<=lastDate; d++) {
+    const thisDate = new Date(y, m, d);
+    const key = fmtShort(thisDate);
+    const dow  = thisDate.getDay();
+    const isTd = today.getFullYear()===y && today.getMonth()===m && today.getDate()===d;
+    const isSel= selectedDate.getFullYear()===y && selectedDate.getMonth()===m && selectedDate.getDate()===d;
+    const cnt  = countMap[key] || 0;
+    const dotHtml = cnt > 0
+      ? `<div class="cal-dots">${Array.from({length:Math.min(cnt,3)},(_,i)=>`<div class="cal-dot${i===2&&cnt>2?' full':''}"></div>`).join('')}</div>`
+      : `<div class="cal-dots"></div>`;
+    const cls = [
+      'cal-day',
+      isTd   ? 'today'    : '',
+      isSel  ? 'selected' : '',
+      dow===0 ? 'sun'     : '',
+      dow===6 ? 'sat'     : '',
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" data-date="${key}">
+      <span class="cal-dn">${d}</span>
+      ${dotHtml}
+    </div>`;
+  }
+  $('calGrid').innerHTML = html;
+
+  $('calGrid').querySelectorAll('.cal-day[data-date]').forEach(el => {
+    el.addEventListener('click', () => {
+      const [yy,mm,dd] = el.dataset.date.split('-').map(Number);
+      selectedDate = new Date(yy, mm-1, dd);
+      closeCalSheet();
+      render();
+    });
+  });
+}
+
+// コースマスタ
+let courses = _saved?.courses || [
+  { id:101, name:'おまかせコース', price:8000, duration:120, note:'' },
+  { id:102, name:'ライトコース',   price:5000, duration:90,  note:'アレルギー対応可' },
+];
+
+const TL_START = 17;
+const TL_HOURS = 7;  // 17:00〜24:00
+
+// ── Utils ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const fmtDate  = d => d.toLocaleDateString('ja-JP',{ year:'numeric', month:'long', day:'numeric', weekday:'short' });
+const fmtShort = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const isToday  = d => { const t=new Date(); return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate(); };
+
+const STATUS_LABEL = { confirmed:'確定', pending:'仮予約', cancelled:'CXL' };
+const STATUS_CLS   = { confirmed:'st-ok', pending:'st-pnd', cancelled:'st-cxl' };
+
+function timeToPercent(t) {
+  const [h,m] = t.split(':').map(Number);
+  return ((h - TL_START + m/60) / TL_HOURS) * 100;
+}
+function pctToSnappedTime(pct) {
+  const totalMins = (pct/100)*TL_HOURS*60;
+  const rawH = Math.floor(totalMins/60)+TL_START;
+  const rawM = totalMins%60;
+  const snapM = rawM<15?0:rawM<45?30:0;
+  const carry = (snapM===0&&rawM>=45)?1:0;
+  const h = Math.min(rawH+carry,23);
+  const m = h===23?0:snapM;
+  return `${pad(h)}:${pad(m)}`;
+}
+
+// ── Render ──────────────────────────────────────────────
+function render() {
+  $('curDate').textContent = fmtDate(selectedDate);
+  $('btnToday').style.display = isToday(selectedDate) ? 'none' : 'block';
+  renderSummary();
+  renderList();
+  renderTimeline();
+  renderTables();
+  saveData();
+}
+
+function renderSummary() {
+  const total = tables.length;
+  if (!total) { $('summaryRow').innerHTML=''; return; }
+  const todayKey = fmtShort(selectedDate);
+  const active = reservations.filter(r=>r.status!=='cancelled' && (r._date||'')=== todayKey);
+  const STAY = 2.5;
+  const toMins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+
+  let html = '<span class="sum-lbl">2.5h空席</span>';
+  for (let h=17; h<=23; h++) {
+    const slotStart = h * 60;
+    const slotEnd   = slotStart + STAY * 60;
+    const busyTables = new Set(
+      active.filter(r => {
+        const rs = toMins(r.start); const re = toMins(r.end);
+        return rs < slotEnd && re > slotStart;
+      }).map(r => r.tableId)
+    );
+    const v = total - busyTables.size;
+    const cls = v === 0 ? 'full' : 'ok';
+    // 空きがある場合はタップ可能（cursor:pointer）、満席は操作なし
+    const tappable = v > 0 ? `data-h="${h}" style="cursor:pointer"` : '';
+    html += `<div class="sum-chip ${cls}" ${tappable}>
+      <span class="sum-h">${h}時〜</span>
+      <span class="sum-n">${v}</span>
+      ${v > 0 ? '<span class="sum-add">＋</span>' : ''}
+    </div>`;
+  }
+  $('summaryRow').innerHTML = html;
+
+  // タップイベント：空きチップから予約登録
+  $('summaryRow').querySelectorAll('.sum-chip[data-h]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const h = parseInt(chip.dataset.h);
+      const startStr = `${pad(h)}:00`;
+      const endH = h + Math.floor(STAY);
+      const endM = (STAY % 1) * 60; // 0.5h → 30分
+      const endStr = `${pad(Math.min(endH, 23))}:${pad(endM)}`;
+      // 空いているテーブルの先頭を自動選択
+      const active2 = reservations.filter(r=>r.status!=='cancelled' && (r._date||'')===todayKey);
+      const toMins2 = t => { const [hh,mm]=t.split(':').map(Number); return hh*60+mm; };
+      const freeTable = tables.find(t =>
+        !active2.some(r =>
+          r.tableId === t.id &&
+          toMins2(r.start) < toMins2(endStr) &&
+          toMins2(r.end)   > toMins2(startStr)
+        )
+      );
+      openResModal(null, freeTable ? freeTable.id : null, startStr, endStr);
+    });
+  });
+}
+
+function renderList() {
+  const todayKey = fmtShort(selectedDate);
+  const res = reservations.filter(r=>(r._date||'')===todayKey).sort((a,b)=>a.start.localeCompare(b.start));
+  if (!res.length) {
+    $('vList').innerHTML='<div class="empty"><div class="ico">📋</div>この日の予約はありません</div>';
+    return;
+  }
+  const lunch  = res.filter(r=>r.start<'15:00');
+  const dinner = res.filter(r=>r.start>='15:00');
+  const group  = (lbl,items) => {
+    if(!items.length) return '';
+    return `<div class="sec-title">${lbl}</div>` + items.map(r=>{
+      const t=tables.find(t=>t.id===r.tableId);
+      const c=courses.find(c=>c.id===r.courseId);
+      return `<div class="res-card" data-rid="${r.id}">
+        <div class="rc-left">
+          <div class="rc-time">${r.start}</div>
+          <div class="rc-tbl">${t?t.name:'—'}</div>
+        </div>
+        <div class="rc-body">
+          <div class="rc-name">${r.name}</div>
+          <div class="rc-detail">${r.start}〜${r.end}${c?' · '+c.name:''}${r.memo?' · '+r.memo:''}</div>
+        </div>
+        <div class="rc-right">
+          <div class="rc-pax">${r.pax}名</div>
+          <div class="rc-st ${STATUS_CLS[r.status]}">${STATUS_LABEL[r.status]}</div>
+        </div>
+      </div>`;
+    }).join('');
+  };
+  $('vList').innerHTML = group('ランチ',lunch)+group('ディナー',dinner);
+  $('vList').querySelectorAll('.res-card').forEach(el=>{
+    el.addEventListener('click',()=>openResModal(parseInt(el.dataset.rid)));
+  });
+}
+
+function renderTimeline() {
+  // 1時間あたりのピクセル幅（変更時はCSSの .tl-inner width も合わせる）
+  const COL_PX   = 80;
+  const TOTAL_PX = TL_HOURS * COL_PX; // 7h × 80px = 560px
+
+  // 時間→px変換（%ではなくpxで配置）
+  const timeToPx = t => {
+    const [h,m] = t.split(':').map(Number);
+    return ((h - TL_START + m/60) / TL_HOURS) * TOTAL_PX;
+  };
+  const pctToSnappedTimePx = px => {
+    const pct = px / TOTAL_PX * 100;
+    return pctToSnappedTime(pct);
+  };
+
+  // マーカー (30分刻み)
+  const markers = [];
+  for (let i = 0; i <= TL_HOURS * 2; i++) {
+    const mins   = i * 30;
+    const px     = (mins / (TL_HOURS * 60)) * TOTAL_PX;
+    const isMaj  = mins % 60 === 0;
+    const h      = TL_START + Math.floor(mins / 60);
+    const m      = mins % 60;
+    if (h > 24 || (h === 24 && m > 0)) continue;
+    markers.push({ px, isMaj, label: `${pad(h === 24 ? 0 : h)}:${pad(m)}` });
+  }
+
+  const gridHtml  = markers.map(mk =>
+    `<div class="gl ${mk.isMaj?'maj':'min'}" style="left:${mk.px}px"></div>`
+  ).join('');
+  const labelHtml = markers.map(mk =>
+    `<div class="tl-lbl ${mk.isMaj?'maj':''}" style="left:${mk.px}px">${mk.label}</div>`
+  ).join('');
+
+  // 固定列（テーブル名）
+  const fixedRows = tables.map(t =>
+    `<div class="tl-fixed-row"><div class="rn">${t.name}</div><div class="rc">${t.cap}名</div></div>`
+  ).join('');
+
+  // スクロール列（各テーブルの行）
+  const todayKey = fmtShort(selectedDate);
+  const scrollRows = tables.map(t => {
+    const res    = reservations.filter(r => r.tableId === t.id && r.status !== 'cancelled' && (r._date||'') === todayKey);
+    const sorted = [...res].sort((a,b) => a.start.localeCompare(b.start));
+
+    // 空きゾーン（pxベース）
+    const gaps = []; let prev = 0;
+    for (const r of sorted) {
+      const l = timeToPx(r.start);
+      if (l > prev + 1) gaps.push({ left: prev, width: l - prev });
+      prev = timeToPx(r.end);
+    }
+    if (prev < TOTAL_PX - 1) gaps.push({ left: prev, width: TOTAL_PX - prev });
+
+    const emptyHtml = gaps.map(g =>
+      `<div class="tl-empty" style="left:${g.left}px;width:${g.width}px" data-tid="${t.id}"></div>`
+    ).join('');
+
+    const blkHtml = res.map(r => {
+      const left  = timeToPx(r.start);
+      const width = Math.max(timeToPx(r.end) - left, 10);
+      const cls   = (r.start < '15:00' ? 'lunch' : 'dinner') + (r.status === 'pending' ? ' pend' : '');
+      return `<div class="tl-blk ${cls}" style="left:${left}px;width:${width}px" data-rid="${r.id}">${r.name}</div>`;
+    }).join('');
+
+    return `<div class="tl-row" style="width:${TOTAL_PX}px">${gridHtml}${emptyHtml}${blkHtml}</div>`;
+  }).join('');
+
+  $('vTL').innerHTML = `
+    <div style="padding:8px 14px 4px;font:11px var(--mono);color:var(--muted);letter-spacing:.04em">← 横にスクロール</div>
+    <div class="tl-outer">
+      <div class="tl-fixed">
+        <div class="tl-fixed-head"></div>
+        ${fixedRows}
+      </div>
+      <div class="tl-scroll" id="tlScroll">
+        <div class="tl-inner" style="width:${TOTAL_PX}px">
+          <div class="tl-labels" style="width:${TOTAL_PX}px">${labelHtml}</div>
+          ${scrollRows}
+        </div>
+      </div>
+    </div>`;
+
+  // タップイベント
+  $('vTL').querySelectorAll('.tl-empty').forEach(zone => {
+    zone.addEventListener('click', e => {
+      e.stopPropagation();
+      const tid  = parseInt(zone.dataset.tid);
+      const rect = zone.closest('.tl-row').getBoundingClientRect();
+      const scrollEl = $('tlScroll');
+      const px   = e.clientX - rect.left + scrollEl.scrollLeft - parseFloat(zone.style.left) + parseFloat(zone.style.left);
+      // クリック位置をpxで計算
+      const clickPx = e.clientX - $('tlScroll').getBoundingClientRect().left + $('tlScroll').scrollLeft;
+      const pct  = Math.max(0, Math.min(100, clickPx / TOTAL_PX * 100));
+      const ss   = pctToSnappedTime(pct);
+      const [sh, sm] = ss.split(':').map(Number);
+      const es   = `${pad(Math.min(sh+2, 24))}:${pad(sm)}`;
+      openResModal(null, tid, ss, es === '24:00' ? '23:59' : es);
+    });
+  });
+  $('vTL').querySelectorAll('.tl-blk').forEach(blk => {
+    blk.addEventListener('click', e => { e.stopPropagation(); openResModal(parseInt(blk.dataset.rid)); });
+  });
+}
+
+function renderTables() {
+  const active = reservations.filter(r=>r.status!=='cancelled');
+  let html = '<div class="tbl-grid">';
+  for(const t of tables){
+    const busy = active.some(r=>r.tableId===t.id);
+    const cnt  = active.filter(r=>r.tableId===t.id).length;
+    html+=`<div class="tbl-card" data-tid="${t.id}">
+      <div class="tbl-card-head">
+        <div class="tbl-card-name">${t.name}</div>
+        <div class="tbl-card-dot ${busy?'busy':''}"></div>
+      </div>
+      <div class="tbl-card-cap">${t.cap}名席</div>
+      <div class="tbl-card-res">${cnt?cnt+'件の予約':'空き'}</div>
+    </div>`;
+  }
+  html+=`<div class="add-tbl-card" id="addTblCard">＋ テーブル追加</div></div>`;
+  $('vTables').innerHTML = html;
+  $('vTables').querySelectorAll('.tbl-card').forEach(el=>{
+    el.addEventListener('click',()=>openTblModal());
+  });
+  $('addTblCard').addEventListener('click',()=>openTblModal());
+}
+
+// ── Reservation Sheet ───────────────────────────────────
+function openResModal(id, preTableId, preStart, preEnd) {
+  $('fName').style.borderColor='';
+  $('fTable').innerHTML = tables.map(t=>`<option value="${t.id}">${t.name}（${t.cap}名席）</option>`).join('');
+  $('fCourse').innerHTML = `<option value="">コースなし</option>` +
+    courses.map(c=>`<option value="${c.id}">${c.name}（¥${c.price.toLocaleString()}）</option>`).join('');
+
+  if(id!=null){
+    editingId=id;
+    const r=reservations.find(r=>r.id===id);
+    if(!r) return;
+    $('resTitle').textContent='予約を編集';
+    $('fName').value=r.name; $('fPax').value=String(r.pax);
+    $('fDate').value=r._date || fmtShort(selectedDate);
+    $('fStart').value=r.start; $('fEnd').value=r.end;
+    $('fTable').value=String(r.tableId); $('fStatus').value=r.status;
+    $('fCourse').value=r.courseId?String(r.courseId):'';
+    $('fMemo').value=r.memo;
+    $('btnDel').style.display='block';
+  } else {
+    editingId=null;
+    $('resTitle').textContent='予約を追加';
+    $('fName').value=''; $('fPax').value='2';
+    $('fDate').value=fmtShort(selectedDate);
+    $('fStart').value=preStart||'18:00'; $('fEnd').value=preEnd||'20:00';
+    $('fTable').value=preTableId!=null?String(preTableId):(tables[0]?String(tables[0].id):'');
+    $('fStatus').value='confirmed'; $('fCourse').value=''; $('fMemo').value='';
+    $('btnDel').style.display='none';
+  }
+  $('resOverlay').classList.add('on');
+  $('resSheet').classList.add('on');
+  setTimeout(()=>$('fName').focus(),320);
+}
+
+function closeResModal(){
+  $('resOverlay').classList.remove('on');
+  $('resSheet').classList.remove('on');
+  editingId=null;
+}
+
+function saveRes(){
+  const name=$('fName').value.trim();
+  if(!name){ $('fName').style.borderColor='var(--red)'; $('fName').focus(); return; }
+  $('fName').style.borderColor='';
+  const tableId=parseInt($('fTable').value);
+  if(isNaN(tableId)){ alert('テーブルを選択してください'); return; }
+  const data={
+    name, pax:parseInt($('fPax').value)||2,
+    _date: $('fDate').value || fmtShort(selectedDate),
+    start:$('fStart').value||'18:00', end:$('fEnd').value||'20:00',
+    tableId, status:$('fStatus').value,
+    courseId: $('fCourse').value ? parseInt($('fCourse').value) : null,
+    memo:$('fMemo').value.trim(),
+  };
+  if(editingId!==null){
+    const idx=reservations.findIndex(r=>r.id===editingId);
+    if(idx!==-1) reservations[idx]={...reservations[idx],...data};
+  } else {
+    reservations.push({id:uid++,...data});
+  }
+  // 保存した日付に移動
+  if(data._date) {
+    const [yy,mm,dd]=data._date.split('-').map(Number);
+    selectedDate=new Date(yy,mm-1,dd);
+  }
+  closeResModal(); render();
+}
+
+function deleteRes(){
+  if(!confirm('この予約を削除しますか？')) return;
+  reservations=reservations.filter(r=>r.id!==editingId);
+  closeResModal(); render();
+}
+
+// ── Table Sheet ─────────────────────────────────────────
+function openTblModal(){
+  // コースタブを先頭に表示
+  switchSettingTab('course');
+  $('tblOverlay').classList.add('on');
+  $('tblSheet').classList.add('on');
+}
+function closeTblModal(){
+  $('tblOverlay').classList.remove('on');
+  $('tblSheet').classList.remove('on');
+  render();
+}
+function renderTblMgr(){
+  if(!tables.length){ $('tblMgrList').innerHTML='<div style="color:var(--muted);padding:12px 0">テーブルがありません</div>'; return; }
+  $('tblMgrList').innerHTML=tables.map(t=>`<div class="tmi"><span>${t.name}</span><span class="cap">${t.cap}名席</span><button class="rm" data-tid="${t.id}">✕</button></div>`).join('');
+  $('tblMgrList').querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click',()=>removeTbl(parseInt(btn.dataset.tid)));
+  });
+}
+function addTbl(){
+  const name=$('newTblName').value.trim();
+  if(!name){ $('newTblName').focus(); return; }
+  if(tables.find(t=>t.name===name)){ alert('同じ名前のテーブルがあります'); return; }
+  tables.push({id:uid++,name,cap:parseInt($('newTblCap').value)});
+  $('newTblName').value=''; renderTblMgr(); saveData();
+}
+function removeTbl(id){
+  const hasRes=reservations.some(r=>r.tableId===id);
+  if(hasRes&&!confirm('このテーブルには予約があります。削除しますか？')) return;
+  if(hasRes) reservations=reservations.filter(r=>r.tableId!==id);
+  tables=tables.filter(t=>t.id!==id); renderTblMgr(); saveData();
+}
+
+// ── Course Manager ───────────────────────────────────────
+function renderCourseMgr() {
+  const el = $('courseMgrList');
+  if (!courses.length) {
+    el.innerHTML = '<div class="empty-courses">コースがありません</div>';
+    return;
+  }
+  el.innerHTML = courses.map(c => `
+    <div class="course-item">
+      <div class="ci-body">
+        <div class="ci-name">${c.name}</div>
+        <div class="ci-sub">¥${c.price.toLocaleString()} · ${c.duration}分${c.note?' · '+c.note:''}</div>
+      </div>
+      <div class="ci-btns">
+        <button class="ci-edit" data-cid="${c.id}">編集</button>
+        <button class="ci-rm"  data-cid="${c.id}">✕</button>
+      </div>
+    </div>`).join('');
+
+  el.querySelectorAll('.ci-edit').forEach(btn => {
+    btn.addEventListener('click', () => startEditCourse(parseInt(btn.dataset.cid)));
+  });
+  el.querySelectorAll('.ci-rm').forEach(btn => {
+    btn.addEventListener('click', () => removeCourse(parseInt(btn.dataset.cid)));
+  });
+}
+
+function startEditCourse(id) {
+  const c = courses.find(c => c.id === id);
+  if (!c) return;
+  editingCourseId = id;
+  $('courseFormTitle').textContent = 'コースを編集';
+  $('cName').value     = c.name;
+  $('cPrice').value    = c.price;
+  $('cDuration').value = c.duration;
+  $('cNote').value     = c.note;
+  $('btnCourseCancel').style.display = 'block';
+  $('cName').focus();
+}
+
+function cancelEditCourse() {
+  editingCourseId = null;
+  $('courseFormTitle').textContent = 'コースを追加';
+  $('cName').value=''; $('cPrice').value=''; $('cDuration').value=''; $('cNote').value='';
+  $('btnCourseCancel').style.display = 'none';
+}
+
+function saveCourse() {
+  const name = $('cName').value.trim();
+  if (!name) { $('cName').focus(); return; }
+  const price    = parseInt($('cPrice').value)    || 0;
+  const duration = parseInt($('cDuration').value) || 120;
+  const note     = $('cNote').value.trim();
+
+  if (editingCourseId !== null) {
+    const idx = courses.findIndex(c => c.id === editingCourseId);
+    if (idx !== -1) courses[idx] = { ...courses[idx], name, price, duration, note };
+  } else {
+    courses.push({ id: uid++, name, price, duration, note });
+  }
+  cancelEditCourse();
+  renderCourseMgr();
+  saveData();
+}
+
+function removeCourse(id) {
+  if (reservations.some(r => r.courseId === id)) {
+    if (!confirm('このコースを使用している予約があります。削除しますか？')) return;
+    reservations = reservations.map(r => r.courseId === id ? {...r, courseId: null} : r);
+  }
+  courses = courses.filter(c => c.id !== id);
+  renderCourseMgr();
+  saveData();
+}
+
+// タブ切り替え
+function switchSettingTab(t) {
+  $('tabTbl').classList.toggle('on', t==='tbl');
+  $('tabCourse').classList.toggle('on', t==='course');
+  $('paneTbl').classList.toggle('on', t==='tbl');
+  $('paneCourse').classList.toggle('on', t==='course');
+  if (t === 'course') renderCourseMgr();
+  if (t === 'tbl')    renderTblMgr();
+}
+
+// ── View Switch ─────────────────────────────────────────
+function switchView(v){
+  currentView=v;
+  ['list','tL','tables'].forEach(n=>{
+    $('v'+n.charAt(0).toUpperCase()+n.slice(1))?.classList.toggle('on',false);
+  });
+  $('vList').classList.toggle('on',v==='list');
+  $('vTL').classList.toggle('on',v==='tl');
+  $('vTables').classList.toggle('on',v==='tables');
+  ['navList','navTL','navTables'].forEach(id=>$(id).classList.remove('on'));
+  if(v==='list') $('navList').classList.add('on');
+  if(v==='tl')   $('navTL').classList.add('on');
+  if(v==='tables') $('navTables').classList.add('on');
+}
+
+// ── Events ──────────────────────────────────────────────
+$('btnPrev').addEventListener('click',()=>{ selectedDate.setDate(selectedDate.getDate()-1); render(); });
+$('btnNext').addEventListener('click',()=>{ selectedDate.setDate(selectedDate.getDate()+1); render(); });
+$('btnToday').addEventListener('click',()=>{ selectedDate=new Date(); render(); });
+$('curDate').addEventListener('click', openCalSheet);
+$('calClose').addEventListener('click', closeCalSheet);
+$('calPrevM').addEventListener('click',()=>{ calViewDate.setMonth(calViewDate.getMonth()-1); renderCalSheet(); });
+$('calNextM').addEventListener('click',()=>{ calViewDate.setMonth(calViewDate.getMonth()+1); renderCalSheet(); });
+
+$('navAdd').addEventListener('click',()=>openResModal(null));
+$('btnSave').addEventListener('click',saveRes);
+$('btnDel').addEventListener('click',deleteRes);
+$('resClose').addEventListener('click',closeResModal);
+$('btnResCancel').addEventListener('click',closeResModal);
+$('resOverlay').addEventListener('click',closeResModal);
+
+$('btnTblDone').addEventListener('click',closeTblModal);
+$('tblClose').addEventListener('click',closeTblModal);
+$('tblOverlay').addEventListener('click',closeTblModal);
+$('btnAddTbl').addEventListener('click',addTbl);
+$('newTblName').addEventListener('keydown',e=>{ if(e.key==='Enter') addTbl(); });
+
+$('tabTbl').addEventListener('click',()=>switchSettingTab('tbl'));
+$('tabCourse').addEventListener('click',()=>switchSettingTab('course'));
+$('btnCourseSave').addEventListener('click',saveCourse);
+$('btnCourseCancel').addEventListener('click',cancelEditCourse);
+$('cName').addEventListener('keydown',e=>{ if(e.key==='Enter') saveCourse(); });
+
+$('navList').addEventListener('click',()=>switchView('list'));
+$('navTL').addEventListener('click',()=>switchView('tl'));
+$('navTables').addEventListener('click',()=>openTblModal());
+
+// Adjust header height CSS var based on actual rendered size
+function updateHeaderHeight(){
+  const h = document.querySelector('.top-bar').offsetHeight;
+  document.documentElement.style.setProperty('--header-h', h+'px');
+}
+
+// ── Init ────────────────────────────────────────────────
+render();
+updateHeaderHeight();
+window.addEventListener('resize', updateHeaderHeight);
+
+// Firebase リアルタイムリスナー起動
+// （_fbListenはtype="module"スクリプトから非同期でセットされるため少し待つ）
+setTimeout(() => {
+  if (window._fbListen) {
+    showSyncStatus('', '#e8c97e');
+    window._fbListen(data => {
+      showSyncStatus('ok', '#7ec89a');
+      applyRemoteData(data);
+    });
+  }
+}, 800);
+
+// ── PWA: Apple touch icon（canvasで生成） ────────────────
+(function() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 192;
+  const ctx = c.getContext('2d');
+  // 背景
+  const r = 38;
+  ctx.beginPath();
+  ctx.moveTo(r,0); ctx.lineTo(192-r,0);
+  ctx.quadraticCurveTo(192,0,192,r);
+  ctx.lineTo(192,192-r); ctx.quadraticCurveTo(192,192,192-r,192);
+  ctx.lineTo(r,192); ctx.quadraticCurveTo(0,192,0,192-r);
+  ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+  ctx.closePath();
+  ctx.fillStyle = '#0f0f0f';
+  ctx.fill();
+  // アクセントライン
+  ctx.fillStyle = '#e8c97e';
+  ctx.fillRect(28, 68, 136, 8);
+  ctx.fillRect(28, 92, 100, 6);
+  ctx.fillRect(28, 112, 116, 6);
+  // ▸マーク
+  ctx.fillStyle = '#e8c97e';
+  ctx.font = 'bold 72px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('▸', 96, 158);
+  const url = c.toDataURL('image/png');
+  document.getElementById('appleTouchIcon').href = url;
+})();
+
+// ── PWA: Service Worker登録 ──────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'yoyaku-v1';
+const ASSETS = [location.pathname || '/'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+  ));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(()=>r)));
+});
+  `.trim();
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// ── PWA: iOSインストール案内（初回のみ） ─────────────────
+(function() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone;
+  const dismissed = sessionStorage.getItem('pwaBannerDismissed');
+  if (!isIOS || isStandalone || dismissed) return;
+
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position:fixed;bottom:72px;left:12px;right:12px;z-index:300;
+    background:#1a1a1a;border:1px solid #e8c97e33;border-radius:14px;
+    padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.6);font-family:'Noto Sans JP',sans-serif;
+  `;
+  banner.innerHTML = `
+    <div style="font-size:28px;line-height:1">📋</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:#f0ede8;margin-bottom:4px">ホーム画面に追加できます</div>
+      <div style="font-size:12px;color:#888;line-height:1.5">Safariの <strong style="color:#e8c97e">共有ボタン</strong> →「<strong style="color:#e8c97e">ホーム画面に追加</strong>」でアプリとして使えます</div>
+    </div>
+    <button id="pwaBannerClose" style="background:transparent;border:none;color:#888;font-size:20px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById('pwaBannerClose').addEventListener('click', () => {
+    banner.remove();
+    sessionStorage.setItem('pwaBannerDismissed', '1');
+  });
+})();
+</script>
+</body>
+</html>
