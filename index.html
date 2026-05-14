@@ -1242,13 +1242,13 @@ function saveRes(){
     const [yy,mm,dd]=data._date.split('-').map(Number);
     selectedDate=new Date(yy,mm-1,dd);
   }
-  closeResModal(); render();
+  saveData(); closeResModal(); render();
 }
 
 function deleteRes(){
   if(!confirm('この予約を削除しますか？')) return;
   reservations=reservations.filter(r=>r.id!==editingId);
-  closeResModal(); render();
+  saveData(); closeResModal(); render();
 }
 
 // ── Table Sheet ─────────────────────────────────────────
